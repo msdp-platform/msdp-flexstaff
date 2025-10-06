@@ -14,11 +14,15 @@ import ProfileScreen from '../screens/main/ProfileScreen';
 import NotificationsScreen from '../screens/main/NotificationsScreen';
 import TimesheetScreen from '../screens/main/TimesheetScreen';
 import CreateShiftScreen from '../screens/main/CreateShiftScreen';
+import BrowseWorkersScreen from '../screens/BrowseWorkersScreen';
+import AvailabilityScreen from '../screens/AvailabilityScreen';
+import MyTeamScreen from '../screens/MyTeamScreen';
 
 export type MainTabParamList = {
   HomeTab: undefined;
   ShiftsTab: undefined;
   MessagesTab: undefined;
+  TeamTab: undefined;
   ProfileTab: undefined;
 };
 
@@ -27,6 +31,8 @@ export type HomeStackParamList = {
   Notifications: undefined;
   Timesheet: { id: string };
   CreateShift: undefined;
+  BrowseWorkers: undefined;
+  Availability: undefined;
 };
 
 export type ShiftsStackParamList = {
@@ -43,10 +49,15 @@ export type ProfileStackParamList = {
   Profile: undefined;
 };
 
+export type TeamStackParamList = {
+  MyTeam: undefined;
+};
+
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const HomeStack = createStackNavigator<HomeStackParamList>();
 const ShiftsStack = createStackNavigator<ShiftsStackParamList>();
 const MessagesStack = createStackNavigator<MessagesStackParamList>();
+const TeamStack = createStackNavigator<TeamStackParamList>();
 const ProfileStack = createStackNavigator<ProfileStackParamList>();
 
 // Home Stack
@@ -71,6 +82,16 @@ const HomeStackNavigator = () => (
       name="CreateShift"
       component={CreateShiftScreen}
       options={{ title: 'Post New Shift' }}
+    />
+    <HomeStack.Screen
+      name="BrowseWorkers"
+      component={BrowseWorkersScreen}
+      options={{ title: 'Browse Workers' }}
+    />
+    <HomeStack.Screen
+      name="Availability"
+      component={AvailabilityScreen}
+      options={{ title: 'My Availability' }}
     />
   </HomeStack.Navigator>
 );
@@ -107,6 +128,17 @@ const MessagesStackNavigator = () => (
   </MessagesStack.Navigator>
 );
 
+// Team Stack
+const TeamStackNavigator = () => (
+  <TeamStack.Navigator>
+    <TeamStack.Screen
+      name="MyTeam"
+      component={MyTeamScreen}
+      options={{ title: 'My Team' }}
+    />
+  </TeamStack.Navigator>
+);
+
 // Profile Stack
 const ProfileStackNavigator = () => (
   <ProfileStack.Navigator>
@@ -136,6 +168,9 @@ const MainNavigator = () => {
               break;
             case 'MessagesTab':
               iconName = focused ? 'message' : 'message-outline';
+              break;
+            case 'TeamTab':
+              iconName = focused ? 'account-group' : 'account-group-outline';
               break;
             case 'ProfileTab':
               iconName = focused ? 'account' : 'account-outline';
@@ -168,6 +203,11 @@ const MainNavigator = () => {
         name="MessagesTab"
         component={MessagesStackNavigator}
         options={{ title: 'Messages' }}
+      />
+      <Tab.Screen
+        name="TeamTab"
+        component={TeamStackNavigator}
+        options={{ title: 'Team' }}
       />
       <Tab.Screen
         name="ProfileTab"

@@ -20,6 +20,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [industry, setIndustry] = useState('hospitality');
   const [loading, setLoading] = useState(false);
@@ -34,7 +35,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
       return;
     }
 
-    if (role === 'worker' && (!firstName || !lastName)) {
+    if ((role === 'worker' || role === 'individual') && (!firstName || !lastName)) {
       setError('Please enter your name');
       return;
     }
@@ -52,7 +53,9 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
         email,
         password,
         role,
-        ...(role === 'worker' ? { firstName, lastName } : { companyName, industry }),
+        ...(role === 'worker' ? { firstName, lastName } :
+            role === 'individual' ? { firstName, lastName, phoneNumber } :
+            { companyName, industry }),
       };
 
       const response = await authAPI.register(data);
@@ -90,6 +93,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
               onValueChange={setRole}
               buttons={[
                 { value: 'worker', label: 'Worker' },
+                { value: 'individual', label: 'Individual' },
                 { value: 'employer', label: 'Employer' },
               ]}
               style={styles.segmentedButtons}
@@ -125,7 +129,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
               }
             />
 
-            {role === 'worker' ? (
+            {role === 'worker' || role === 'individual' ? (
               <>
                 <TextInput
                   label="First Name *"
@@ -146,8 +150,20 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
                   style={styles.input}
                   left={<TextInput.Icon icon="account" />}
                 />
+
+                {role === 'individual' && (
+                  <TextInput
+                    label="Phone Number"
+                    value={phoneNumber}
+                    onChangeText={setPhoneNumber}
+                    mode="outlined"
+                    keyboardType="phone-pad"
+                    style={styles.input}
+                    left={<TextInput.Icon icon="phone" />}
+                  />
+                )}
               </>
-            ) : (
+            ) : role === 'employer' ? (
               <>
                 <TextInput
                   label="Company Name *"
@@ -159,7 +175,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
                   left={<TextInput.Icon icon="office-building" />}
                 />
               </>
-            )}
+            ) : null}
 
             <Button
               mode="contained"

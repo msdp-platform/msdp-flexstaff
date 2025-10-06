@@ -18,6 +18,7 @@ const HomeScreen = () => {
   }, []);
 
   const isEmployer = user?.role === 'employer';
+  const isWorker = user?.role === 'worker';
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -87,14 +88,14 @@ const HomeScreen = () => {
                       onPress={() => navigation.navigate('CreateShift' as never)}
                     />
                     <ActionButton
-                      icon="account-group"
-                      label="My Team"
-                      onPress={() => {}}
+                      icon="account-search"
+                      label="Browse Workers"
+                      onPress={() => navigation.navigate('BrowseWorkers' as never)}
                     />
                     <ActionButton
-                      icon="file-document"
-                      label="Applications"
-                      onPress={() => {}}
+                      icon="account-group"
+                      label="My Team"
+                      onPress={() => navigation.navigate('TeamTab' as never)}
                     />
                     <ActionButton
                       icon="chart-line"
@@ -102,7 +103,7 @@ const HomeScreen = () => {
                       onPress={() => {}}
                     />
                   </>
-                ) : (
+                ) : isWorker ? (
                   <>
                     <ActionButton
                       icon="magnify"
@@ -110,9 +111,9 @@ const HomeScreen = () => {
                       onPress={() => navigation.navigate('ShiftsTab' as never)}
                     />
                     <ActionButton
-                      icon="clipboard-list"
-                      label="My Shifts"
-                      onPress={() => {}}
+                      icon="calendar"
+                      label="My Availability"
+                      onPress={() => navigation.navigate('Availability' as never)}
                     />
                     <ActionButton
                       icon="clock-check"
@@ -123,6 +124,29 @@ const HomeScreen = () => {
                       icon="wallet"
                       label="Earnings"
                       onPress={() => {}}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <ActionButton
+                      icon="account-search"
+                      label="Browse Workers"
+                      onPress={() => navigation.navigate('BrowseWorkers' as never)}
+                    />
+                    <ActionButton
+                      icon="briefcase"
+                      label="Find Services"
+                      onPress={() => navigation.navigate('ShiftsTab' as never)}
+                    />
+                    <ActionButton
+                      icon="message"
+                      label="Messages"
+                      onPress={() => navigation.navigate('MessagesTab' as never)}
+                    />
+                    <ActionButton
+                      icon="account"
+                      label="Profile"
+                      onPress={() => navigation.navigate('ProfileTab' as never)}
                     />
                   </>
                 )}

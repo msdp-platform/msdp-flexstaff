@@ -1,0 +1,51 @@
+{
+  "expo": {
+    "name": "FlexStaff",
+    "slug": "flexstaff",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0ea5e9"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.flexstaff.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "FlexStaff needs access to your camera to upload profile photos and documents.",
+        "NSPhotoLibraryUsageDescription": "FlexStaff needs access to your photo library to upload profile photos and documents.",
+        "NSLocationWhenInUseUsageDescription": "FlexStaff needs your location to find shifts near you."
+      }
+    },
+    "android": {
+      "package": "com.flexstaff.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0ea5e9"
+      },
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "notification": {
+      "icon": "./assets/notification-icon.png",
+      "color": "#0ea5e9"
+    }
+  }
+}

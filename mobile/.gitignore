@@ -1,0 +1,37 @@
+# Expo
+.expo/
+.expo-shared/
+dist/
+web-build/
+
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.local
+
+# macOS
+.DS_Store
+
+# Debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# Logs
+*.log
+
+# Native
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# Metro
+.metro-health-check*
+
+# TypeScript
+*.tsbuildinfo

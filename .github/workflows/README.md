@@ -1,6 +1,6 @@
 # FlexStaff CI/CD Pipeline
 
-This directory contains GitHub Actions workflows for building and deploying the FlexStaff platform.
+This directory contains documentation for the FlexStaff build and deployment process.
 
 ## Overview
 
@@ -9,264 +9,199 @@ The FlexStaff platform consists of three main components:
 - **Frontend** - React user-facing application
 - **Admin** - React administration portal
 
-## Workflows
+## Build Pipeline Location
 
-### `flexstaff-build-deploy.yml`
+**IMPORTANT**: The FlexStaff build pipeline runs from the centralized DevOps infrastructure repository, not from this repository.
 
-Main build and deployment pipeline that:
-- Detects changes in backend, frontend, or admin directories
-- Builds Docker images for changed components
-- Pushes images to Azure Container Registry (ACR)
-- Supports manual triggers with component selection
+**Pipeline Location**: [msdp-platform/msdp-devops-infrastructure](https://github.com/msdp-platform/msdp-devops-infrastructure)
+**Workflow File**: `.github/workflows/flexstaff-build-sync.yaml`
 
-#### Triggers
+This approach follows the same pattern as other platform services (e.g., Backstage) and provides:
+- ✅ Centralized build configuration
+- ✅ Shared Azure credentials (no per-repo secrets needed)
+- ✅ Consistent build processes across all platform services
+- ✅ Centralized monitoring and maintenance
 
-1. **Automatic (Push to branches)**
-   - `main` - Production builds
-   - `develop` - Development builds
-   - `release/**` - Release candidate builds
+## No Repository Secrets Required
 
-2. **Pull Requests**
-   - Builds images without pushing (validation only)
+Unlike traditional CI/CD setups, this approach **does not require** any secrets to be configured in this repository:
 
-3. **Manual Dispatch**
-   - Allows selection of target environment
-   - Allows selection of specific components to build
+- ✅ No `AZURE_CLIENT_ID` needed
+- ✅ No `AZURE_TENANT_ID` needed
+- ✅ No `AZURE_SUBSCRIPTION_ID` needed
 
-#### Image Tagging Strategy
+All Azure credentials are managed centrally in the `msdp-devops-infrastructure` repository using organization-level secrets and GitHub App authentication.
 
-Images are tagged with:
-- **Branch name** - e.g., `main`, `develop`
-- **Git SHA** - e.g., `main-abc1234`
-- **Semantic version** - e.g., `1.2.3`, `1.2` (if tagged)
-- **latest** - Only for the default branch (main)
+## Triggering Builds
 
-## Setup Instructions
+### Manual Trigger (GitHub UI)
 
-### 1. Azure Container Registry
+1. Go to the [msdp-devops-infrastructure Actions page](https://github.com/msdp-platform/msdp-devops-infrastructure/actions)
+2. Select **FlexStaff Build & Sync** workflow
+3. Click **Run workflow**
+4. Configure the build:
+   - **Branch**: Select FlexStaff branch to build (default: `main`)
+   - **Components**: Choose what to build:
+     - `all` - Build all components (backend, frontend, admin)
+     - `backend` - Build only backend
+     - `frontend` - Build only frontend
+     - `admin` - Build only admin
+     - Or comma-separated: `backend,frontend`
+   - **Image Tag**: Optional custom tag (auto-generated if blank)
+   - **Environment**: Target environment (dev/staging/production)
+5. Click **Run workflow**
 
-Create an Azure Container Registry if you don't have one:
+### Repository Dispatch (API/CLI)
+
+Trigger builds programmatically:
 
 ```bash
-# Create resource group
-az group create --name flexstaff-rg --location uksouth
+# Using GitHub CLI
+gh workflow run flexstaff-build-sync.yaml \
+  --repo msdp-platform/msdp-devops-infrastructure \
+  --ref main \
+  --field flexstaff_ref=main \
+  --field components=all \
+  --field environment=dev
 
-# Create ACR
-az acr create \
-  --resource-group flexstaff-rg \
-  --name msdpacr \
-  --sku Basic
+# Or trigger specific components
+gh workflow run flexstaff-build-sync.yaml \
+  --repo msdp-platform/msdp-devops-infrastructure \
+  --ref main \
+  --field flexstaff_ref=develop \
+  --field components=backend,frontend \
+  --field environment=staging
 ```
 
-### 2. Azure Service Principal (for OIDC)
-
-Create a service principal with access to ACR:
+### Using GitHub API
 
 ```bash
-# Get ACR resource ID
-ACR_ID=$(az acr show --name msdpacr --query id --output tsv)
-
-# Get subscription ID
-SUBSCRIPTION_ID=$(az account show --query id --output tsv)
-
-# Create service principal
-az ad sp create-for-rbac \
-  --name "github-flexstaff-sp" \
-  --role "AcrPush" \
-  --scopes $ACR_ID \
-  --sdk-auth
-```
-
-Save the output JSON - you'll need these values for GitHub secrets.
-
-### 3. Configure Federated Credentials (OIDC)
-
-Set up OIDC federation for passwordless authentication:
-
-```bash
-# Get the application ID from the service principal
-APP_ID=$(az ad sp list --display-name "github-flexstaff-sp" --query [0].appId --output tsv)
-
-# Create federated credential for main branch
-az ad app federated-credential create \
-  --id $APP_ID \
-  --parameters '{
-    "name": "github-flexstaff-main",
-    "issuer": "https://token.actions.githubusercontent.com",
-    "subject": "repo:msdp-platform/msdp-flexstaff:ref:refs/heads/main",
-    "audiences": ["api://AzureADTokenExchange"]
-  }'
-
-# Create federated credential for develop branch
-az ad app federated-credential create \
-  --id $APP_ID \
-  --parameters '{
-    "name": "github-flexstaff-develop",
-    "issuer": "https://token.actions.githubusercontent.com",
-    "subject": "repo:msdp-platform/msdp-flexstaff:ref:refs/heads/develop",
-    "audiences": ["api://AzureADTokenExchange"]
-  }'
-
-# Create federated credential for pull requests
-az ad app federated-credential create \
-  --id $APP_ID \
-  --parameters '{
-    "name": "github-flexstaff-pr",
-    "issuer": "https://token.actions.githubusercontent.com",
-    "subject": "repo:msdp-platform/msdp-flexstaff:pull_request",
-    "audiences": ["api://AzureADTokenExchange"]
+curl -X POST \
+  -H "Accept: application/vnd.github+json" \
+  -H "Authorization: Bearer $GITHUB_TOKEN" \
+  https://api.github.com/repos/msdp-platform/msdp-devops-infrastructure/actions/workflows/flexstaff-build-sync.yaml/dispatches \
+  -d '{
+    "ref": "main",
+    "inputs": {
+      "flexstaff_ref": "main",
+      "components": "all",
+      "environment": "dev"
+    }
   }'
 ```
 
-### 4. GitHub Repository Secrets
+## Image Tagging Strategy
 
-Add the following secrets to your GitHub repository:
-
-Go to: **Settings** → **Secrets and variables** → **Actions** → **New repository secret**
-
-Required secrets:
-
-| Secret Name | Description | How to Get |
-|------------|-------------|------------|
-| `AZURE_CLIENT_ID` | Service Principal Application (client) ID | From step 2 output: `clientId` |
-| `AZURE_TENANT_ID` | Azure AD Tenant ID | From step 2 output: `tenantId` |
-| `AZURE_SUBSCRIPTION_ID` | Azure Subscription ID | From step 2 output: `subscriptionId` |
-
-### 5. Update Workflow Variables
-
-Edit `.github/workflows/flexstaff-build-deploy.yml` and update:
-
-```yaml
-env:
-  ACR_NAME: msdpacr  # Your ACR name
-  ACR_REGISTRY: msdpacr.azurecr.io  # Your ACR URL
-```
-
-## Usage
-
-### Automatic Builds
-
-Push code to `main`, `develop`, or `release/*` branches:
-
-```bash
-git add .
-git commit -m "Update backend API"
-git push origin main
-```
-
-The workflow will automatically:
-1. Detect which components changed
-2. Build Docker images for changed components
-3. Push images to ACR with appropriate tags
-
-### Manual Builds
-
-Trigger manually via GitHub UI:
-
-1. Go to **Actions** → **FlexStaff Build and Deploy to ACR**
-2. Click **Run workflow**
-3. Select:
-   - Target environment (dev/staging/production)
-   - Components to build (all, or specific ones)
-4. Click **Run workflow**
-
-### Pull Request Validation
-
-When you create a pull request:
-- All changed components are built
-- Images are NOT pushed to ACR (validation only)
-- Build status is reported on the PR
+Images are automatically tagged with:
+- **Environment + Timestamp** - e.g., `dev-20250107-143022`
+- **latest** - Always points to the most recent build
+- **Custom tag** - If specified in workflow inputs
 
 ## Image Locations
 
-Built images are available at:
+Built images are published to Azure Container Registry:
 
 ```
-msdpacr.azurecr.io/flexstaff/backend:<tag>
-msdpacr.azurecr.io/flexstaff/frontend:<tag>
-msdpacr.azurecr.io/flexstaff/admin:<tag>
+{ACR_NAME}.azurecr.io/platform/flexstaff-backend:{tag}
+{ACR_NAME}.azurecr.io/platform/flexstaff-frontend:{tag}
+{ACR_NAME}.azurecr.io/platform/flexstaff-admin:{tag}
 ```
 
-### Pulling Images
+Example (default ACR):
+```
+msdpc.azurecr.io/platform/flexstaff-backend:dev-20250107-143022
+msdpc.azurecr.io/platform/flexstaff-backend:latest
+```
+
+## Pulling Images
 
 ```bash
 # Login to ACR
-az acr login --name msdpacr
+az acr login --name msdpc
 
 # Pull images
-docker pull msdpacr.azurecr.io/flexstaff/backend:latest
-docker pull msdpacr.azurecr.io/flexstaff/frontend:latest
-docker pull msdpacr.azurecr.io/flexstaff/admin:latest
+docker pull msdpc.azurecr.io/platform/flexstaff-backend:latest
+docker pull msdpc.azurecr.io/platform/flexstaff-frontend:latest
+docker pull msdpc.azurecr.io/platform/flexstaff-admin:latest
+
+# Or pull specific version
+docker pull msdpc.azurecr.io/platform/flexstaff-backend:dev-20250107-143022
 ```
 
 ## Dockerfile Details
 
+All Dockerfiles are located in this repository:
+
 ### Backend (`backend/Dockerfile`)
 
 Multi-stage build:
-- **Builder stage**: Builds TypeScript to JavaScript
+- **Builder stage**: Compiles TypeScript to JavaScript
 - **Production stage**:
   - Minimal Node.js Alpine image
   - Production dependencies only
-  - Non-root user execution
-  - Health check endpoint
+  - Non-root user (nodejs:1001)
+  - Health check on `/health` endpoint
   - Exposes port 3000
 
 ### Frontend & Admin (`frontend/Dockerfile`, `admin/Dockerfile`)
 
 Multi-stage build:
-- **Builder stage**: Builds React application
+- **Builder stage**: Builds React application with Vite
 - **Production stage**:
   - Nginx Alpine image
   - Custom nginx.conf for SPA routing
-  - Non-root user execution
-  - Health check endpoint
+  - Security headers configured
+  - Gzip compression enabled
+  - Non-root user (nginx-user:1001)
+  - Health check on `/health` endpoint
   - Exposes port 8080
+
+## Build Process
+
+When you trigger the workflow, it:
+
+1. **Determines components** - Based on input selection
+2. **Checks out FlexStaff repository** - Using GitHub App token
+3. **Azure authentication** - Uses organization-level OIDC credentials
+4. **Builds Docker images** - For selected components
+5. **Pushes to ACR** - With versioned and latest tags
+6. **Cleans up old images** - Keeps last 5 versions per component
+7. **Generates summary** - With image locations and pull commands
 
 ## Monitoring Builds
 
 ### GitHub Actions UI
 
 View build status:
-1. Go to **Actions** tab in GitHub
-2. Select **FlexStaff Build and Deploy to ACR**
-3. View recent runs and logs
+1. Go to [msdp-devops-infrastructure Actions](https://github.com/msdp-platform/msdp-devops-infrastructure/actions)
+2. Select **FlexStaff Build & Sync**
+3. View recent runs and detailed logs
 
 ### Build Summary
 
 Each workflow run creates a summary showing:
-- Trigger type and branch
+- Build configuration (branch, environment, tag)
 - Build status for each component
-- Image locations
+- Published image locations
+- Pull commands for downloading images
 
-### Notifications
+## Local Development
 
-Configure GitHub notifications for workflow failures:
-1. Go to **Settings** → **Notifications**
-2. Enable **Actions** notifications
+For local development, use the dev Dockerfiles:
 
-## Troubleshooting
+```bash
+# Start all services with Docker Compose
+docker-compose up
 
-### Build Failures
+# Or build individual components
+docker build -f backend/Dockerfile.dev -t flexstaff-backend:dev backend/
+docker build -f frontend/Dockerfile.dev -t flexstaff-frontend:dev frontend/
+docker build -f admin/Dockerfile.dev -t flexstaff-admin:dev admin/
+```
 
-**Issue**: "Failed to login to ACR"
-- Check AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID secrets
-- Verify federated credentials are configured correctly
-- Ensure service principal has AcrPush role
+## Testing Production Builds Locally
 
-**Issue**: "Docker build failed"
-- Check Dockerfile syntax
-- Verify all required files exist in context
-- Review build logs for specific errors
-
-**Issue**: "Image not found in ACR"
-- Images are only pushed on push events (not PRs)
-- Check if build completed successfully
-- Verify ACR name in workflow matches actual ACR
-
-### Manual Validation
-
-Test Dockerfiles locally:
+Test production Dockerfiles before triggering builds:
 
 ```bash
 # Build backend
@@ -280,28 +215,111 @@ docker build -t flexstaff-frontend:test .
 # Build admin
 cd admin
 docker build -t flexstaff-admin:test .
+
+# Run and test
+docker run -p 3000:3000 flexstaff-backend:test
+docker run -p 8080:8080 flexstaff-frontend:test
+docker run -p 8081:8080 flexstaff-admin:test
 ```
 
-## Security Best Practices
+## Troubleshooting
 
-1. **OIDC Authentication**: Uses Azure AD federated credentials (no passwords stored)
-2. **Non-root Users**: All containers run as non-root users
-3. **Minimal Images**: Alpine-based images for smaller attack surface
-4. **Health Checks**: All images include health check endpoints
-5. **Cache Layers**: GitHub Actions cache for faster builds
-6. **Dependency Scanning**: Consider adding Trivy or Snyk scanning
+### Build Failures
 
-## Next Steps
+**Issue**: Workflow not found
+- Ensure you're triggering from `msdp-devops-infrastructure` repo, not this repo
+- Check workflow file exists in devops infrastructure repo
 
-1. **ArgoCD Integration**: Deploy images from ACR to Kubernetes
-2. **Environment Promotion**: Automatic promotion from dev → staging → production
-3. **Database Migrations**: Add migration steps to deployment
-4. **Smoke Tests**: Add post-deployment validation
-5. **Rollback Strategy**: Implement automatic rollback on failures
+**Issue**: Permission denied
+- Check you have permissions to run workflows in the devops infrastructure repo
+- Contact DevOps team if needed
+
+**Issue**: Docker build failed
+- Check Dockerfile syntax in this repository
+- Verify all required files exist (nginx.conf, etc.)
+- Review build logs in GitHub Actions
+
+**Issue**: Image not found in ACR
+- Verify build completed successfully
+- Check ACR name matches organization configuration
+- Ensure you're logged into ACR: `az acr login --name msdpc`
+
+## Common Use Cases
+
+### Deploy to Development
+
+```bash
+gh workflow run flexstaff-build-sync.yaml \
+  --repo msdp-platform/msdp-devops-infrastructure \
+  --ref main \
+  --field flexstaff_ref=develop \
+  --field components=all \
+  --field environment=dev
+```
+
+### Deploy to Staging
+
+```bash
+gh workflow run flexstaff-build-sync.yaml \
+  --repo msdp-platform/msdp-devops-infrastructure \
+  --ref main \
+  --field flexstaff_ref=release/v1.0 \
+  --field components=all \
+  --field environment=staging
+```
+
+### Deploy to Production
+
+```bash
+gh workflow run flexstaff-build-sync.yaml \
+  --repo msdp-platform/msdp-devops-infrastructure \
+  --ref main \
+  --field flexstaff_ref=main \
+  --field components=all \
+  --field environment=production \
+  --field image_tag=v1.0.0
+```
+
+### Build Only Backend (Hotfix)
+
+```bash
+gh workflow run flexstaff-build-sync.yaml \
+  --repo msdp-platform/msdp-devops-infrastructure \
+  --ref main \
+  --field flexstaff_ref=hotfix/api-fix \
+  --field components=backend \
+  --field environment=production
+```
+
+## Security & Best Practices
+
+1. **Centralized Credentials**: All Azure credentials managed in devops repo
+2. **GitHub App Authentication**: Secure cross-repository access
+3. **OIDC Authentication**: Passwordless authentication with Azure
+4. **Non-root Containers**: All images run as non-root users
+5. **Minimal Images**: Alpine Linux base for smaller attack surface
+6. **Image Cleanup**: Automatic cleanup of old images (keeps last 5)
+7. **Health Checks**: All containers include health check endpoints
+8. **Multi-stage Builds**: Optimized for smaller final image sizes
+
+## Workflow Architecture
+
+The centralized build approach uses:
+- **GitHub App** (`MSDP_APP_ID`, `MSDP_APP_PRIVATE_KEY`) - For cross-repo checkout
+- **Azure OIDC** (`AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`) - For ACR access
+- **Organization Secrets** - Shared across all platform repositories
+
+This eliminates the need for per-repository secret management.
 
 ## Support
 
 For issues or questions:
-- Create an issue in the repository
-- Contact the DevOps team
-- Check existing workflow runs for examples
+- **Build Issues**: Create issue in [msdp-devops-infrastructure](https://github.com/msdp-platform/msdp-devops-infrastructure/issues)
+- **Application Issues**: Create issue in [this repository](https://github.com/msdp-platform/msdp-flexstaff/issues)
+- **DevOps Team**: Contact platform team for access or permission issues
+
+## Related Documentation
+
+- [msdp-devops-infrastructure README](https://github.com/msdp-platform/msdp-devops-infrastructure/blob/main/README.md)
+- [Backstage Build & Sync](https://github.com/msdp-platform/msdp-devops-infrastructure/blob/main/.github/workflows/backstage-build-sync.yaml) - Similar workflow pattern
+- [Docker Best Practices](https://docs.docker.com/develop/dev-best-practices/)

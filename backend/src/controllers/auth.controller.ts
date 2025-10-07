@@ -62,6 +62,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     if (error instanceof AppError) {
       res.status(error.statusCode).json({ error: error.message });
     } else {
+      console.error('❌ Registration error:', error);
       res.status(500).json({ error: 'Registration failed' });
     }
   }
@@ -101,6 +102,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     if (error instanceof AppError) {
       res.status(error.statusCode).json({ error: error.message });
     } else {
+      console.error('❌ Login error:', error);
       res.status(500).json({ error: 'Login failed' });
     }
   }
